@@ -15,6 +15,7 @@ type Store struct {
 var (
 	storeFilePath string = "StoreMasterAssignment.csv"
 	fileMutex            = sync.RWMutex{}
+	storeCache    map[string]bool
 )
 
 func SetStoreMasterFilePath(path string) {
@@ -23,16 +24,18 @@ func SetStoreMasterFilePath(path string) {
 
 	storeFilePath = path
 }
-func StoreExists(storeID string) (bool, error) {
-	fileMutex.RLock()
-	defer fileMutex.RUnlock()
+
+func LoadStores() error {
+	fileMutex.Lock()
+	defer fileMutex.Unlock()
 
 	file, err := os.Open(storeFilePath)
 	if err != nil {
-		return false, err
+		return err
 	}
 	defer file.Close()
 
+	cache := make(map[string]bool)
 	reader := csv.NewReader(file)
 	for {
 		record, err := reader.Read()
@@ -40,17 +43,26 @@ func StoreExists(storeID string) (bool, error) {
 			if err.Error() == "EOF" {
 				break
 			}
-			return false, err
+			return err
 		}
 
-		if len(record) < 1 {
-			continue // Skip invalid rows
-		}
-
-		if len(record) >= 3 && record[2] == storeID {
-			return true, nil
+		if len(record) >= 3 {
+			cache[record[2]] = true // record[2] is the StoreID based on previous logic
 		}
 	}
 
-	return false, nil
+	storeCache = cache
+	return nil
+}
+
+func StoreExists(storeID string) (bool, error) {
+	fileMutex.RLock()
+	defer fileMutex.RUnlock()
+
+	if storeCache == nil {
+		return false, nil // or error? Let's say false if not loaded
+	}
+
+	exists := storeCache[storeID]
+	return exists, nil
 }

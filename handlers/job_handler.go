@@ -86,6 +86,17 @@ func GetJobInfo(w http.ResponseWriter, r *http.Request) {
 }
 
 func processJob(job models.Job) {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Printf("Recovered from panic in processJob: %v\n", r)
+			job.Status = "failed"
+			job.Errors = append(job.Errors, models.JobError{
+				Error: fmt.Sprintf("internal server error: %v", r),
+			})
+			models.JobStore.Store(job.ID, job)
+		}
+	}()
+
 	var failedVisits []models.JobError
 	for _, visit := range job.Visits {
 		isStoreExist, _ := models.StoreExists(visit.StoreID)

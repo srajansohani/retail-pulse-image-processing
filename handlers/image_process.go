@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"fmt"
 	"image"
 	"image/jpeg"
 	"io"
@@ -14,25 +15,27 @@ import (
 func DownloadImage(url string) (image.Image, error) {
 	resp, err := http.Get(url)
 	if err != nil {
-		log.Fatalf("Error fetching image: %v", err)
+		return nil, fmt.Errorf("error fetching image: %v", err)
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to download image, status code: %d", resp.StatusCode)
+	}
 
 	// Read the image data from the response body into a buffer
 	imgData, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatalf("Error reading image data: %v", err)
+		return nil, fmt.Errorf("error reading image data: %v", err)
 	}
 
 	img, err := jpeg.Decode(bytes.NewReader(imgData))
 	if err != nil {
-		log.Fatalf("Error decoding image: %v", err)
+		return nil, fmt.Errorf("error decoding image: %v", err)
 	}
 
 	log.Println("Image decoded successfully")
-	_ = img
-	// fmt.Print(imageData)
-	return img, err
+	return img, nil
 }
 
 func ProcessImage(url string) (int, error) {
